@@ -34,7 +34,9 @@
   body.dark .echip{background:#222833;border-color:#2c333f}
   .echip.on{background:var(--ec);border-color:var(--ec);color:#fff}
   .hint{font-family:var(--ui);font-size:12.5px;color:var(--muted)}
-  .grid{display:grid;grid-template-columns:148px 1fr 300px;gap:14px;align-items:start}
+  .grid{display:grid;grid-template-columns:1fr 304px;grid-template-rows:auto auto;gap:14px;align-items:start}
+  .chartcol{grid-column:1;grid-row:1;position:relative}
+  .cardcol{grid-column:1 / -1;grid-row:2}
   .panel{background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.10);padding:14px 16px}
   .panel h3{font-family:var(--ui);font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px}
   .panel h3 b{color:var(--accent)}
@@ -44,7 +46,24 @@
   .tsel .row.sel{background:#fff;box-shadow:inset 3px 0 0 var(--accent);font-weight:700}
   .tsel .row .dot{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
   .tsel .row.all{border-bottom:1px solid var(--grid);border-radius:0;margin-bottom:4px;padding-bottom:11px}
-  .side{display:flex;flex-direction:column;gap:14px}
+  .side{grid-column:2;grid-row:1;align-self:stretch;display:flex;flex-direction:column;gap:14px;
+        overflow-y:auto;overflow-x:hidden;padding-right:7px;scrollbar-width:thin;scrollbar-color:var(--accent) transparent}
+  .side::-webkit-scrollbar{width:8px}
+  .side::-webkit-scrollbar-track{background:transparent}
+  .side::-webkit-scrollbar-thumb{background:var(--accent);border-radius:8px;border:2px solid var(--bg)}
+  .side::-webkit-scrollbar-thumb:hover{background:#d81f46}
+  .topicdock{position:absolute;top:0;left:0;height:100%;z-index:30}
+  .topictab{position:absolute;top:10px;left:0;writing-mode:vertical-rl;background:var(--accent);color:#fff;border:none;
+    border-radius:0 11px 11px 0;padding:16px 8px;font-family:var(--ui);font-weight:700;font-size:11.5px;letter-spacing:.14em;
+    text-transform:uppercase;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:opacity .2s}
+  .topicflyout{position:absolute;top:0;left:0;width:190px;max-height:100%;overflow-y:auto;
+    transform:translateX(-100%);opacity:0;transition:transform .26s cubic-bezier(.4,0,.2,1),opacity .26s}
+  .topicdock.open .topicflyout{transform:translateX(0);opacity:1}
+  .topicdock.open .topictab{opacity:0;pointer-events:none}
+  #tip{position:fixed;z-index:90;pointer-events:none;opacity:0;transition:opacity .12s;background:var(--bg);color:var(--ink);
+    border:1px solid var(--grid);border-radius:10px;box-shadow:0 8px 26px rgba(0,0,0,.18);padding:8px 11px;
+    font-family:var(--ui);font-size:12px;line-height:1.5;max-width:210px}
+  #tip b{color:var(--accent)} #tip .r{font-weight:800;color:var(--teal)}
   .word{font-weight:700;pointer-events:none;font-family:var(--ui)}
   .flowlabel textPath{fill:#222;font-weight:900;letter-spacing:1px;opacity:.4;text-transform:uppercase;font-family:var(--ui)}
   .axis text{fill:var(--muted);font-size:11.5px;font-family:var(--ui)}
@@ -71,6 +90,13 @@
   .topvid .star{color:var(--accent);font-weight:800}
   .topvid .v{color:var(--muted)}
   #loading{max-width:640px;margin:40px auto;text-align:center;color:var(--muted);font-family:var(--ui)}
+  .note{font-family:var(--ui);font-size:11px;line-height:1.45;color:var(--muted);margin-top:9px;padding-top:8px;border-top:1px solid var(--grid)}
+  .note b{color:var(--accent)}
+  #lock svg text{font-family:var(--ui)}
+  .corrsum{font-family:var(--ui);font-size:11.5px;color:var(--ink);margin-top:8px;line-height:1.4}
+  .corrsum .pos{color:var(--accent);font-weight:800}
+  .corrsum .neg{color:#2f7fd0;font-weight:800}
+  .corr svg text{font-family:var(--ui)}
 </style>
 </head>
 <body>
@@ -96,18 +122,34 @@
         <button data-m="count">Video count</button>
       </div>
       <div class="emosel" id="emosel"><span class="lbl">Emotion lens:</span></div>
+      <div class="seg" id="normsel"><span class="lbl">Mood scale =</span>
+        <button data-n="global" class="active">Global</button>
+        <button data-n="topic">Topic norm</button>
+      </div>
       <span class="hint" id="hint">Pick topics (multi) on the left · pick emotions to focus the mood radar · scrub to pick a time</span>
     </div>
     <div class="grid">
-      <div class="panel tsel"><h3>Topic</h3><div id="tlist"></div></div>
-      <div class="panel"><div id="chart"></div></div>
+      <div class="chartcol">
+        <div class="panel"><div id="chart"></div><div id="lock" style="margin-top:2px"></div></div>
+        <div class="topicdock" id="topicdock">
+          <button class="topictab" onclick="document.getElementById('topicdock').classList.toggle('open')">Topics ▸</button>
+          <div class="topicflyout panel tsel"><h3>Topic</h3><div id="tlist"></div></div>
+        </div>
+      </div>
       <div class="side">
-        <div class="panel"><h3 id="emoTitle">Mood — <b>all topics</b></h3><div id="emo"></div></div>
+        <div class="panel"><h3 id="emoTitle">Mood — <b>all topics</b></h3><div id="emo"></div>
+          <div class="note">Bars scale to <b>global</b> emotion averages, so joy can swamp the chart. Flip <b>Mood scale → Topic norm</b> to rescale each emotion to the selection's own voice and reveal what mood actually defines it.</div>
+        </div>
+        <div class="panel"><h3 id="corrTitle">Emotion entanglement — <b>all topics</b></h3><div id="corr"></div>
+          <div class="corrsum" id="corrSum"></div></div>
         <div class="panel"><h3 id="lifeTitle">30-day lifelines — <b>all topics</b></h3><div id="life"></div>
           <div class="src">trajectory chart adapted from Yehor's "TikTok Lottery"</div></div>
       </div>
+      <div class="cardcol">
+        <div class="panel"><h3 id="cardTitle">The average video</h3><div id="card"></div></div>
+      </div>
     </div>
-    <div class="panel" style="margin-top:14px"><h3 id="cardTitle">The average video</h3><div id="card"></div></div>
+    <div id="tip"></div>
   </div>
 </div>
 
@@ -170,7 +212,44 @@ d3.json("explore_data.json").then(DATA=>{
   const gAxis=svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.b})`);
   const cursor=svg.append("line").attr("class","cursor").attr("y1",M.t).attr("y2",H-M.b).style("opacity",0);
   const cursorLab=svg.append("text").attr("class","cursorLab").attr("y",M.t-6).attr("text-anchor","middle").style("opacity",0);
-  let metric="views", monthStart=0, monthEnd=nDays-1, cursorDay=Math.floor(nDays/2);
+  let metric="views", monthStart=0, monthEnd=nDays-1, cursorDay=Math.floor(nDays/2), normMode="global";
+
+  // ---- per-day view-weighted emotion profile for the current selection ----
+  function dayEmo(d){
+    const set=selTopics.size?topics.filter(t=>selTopics.has(t.key)):topics;
+    const tw=set.map(t=>({t,w:Math.max(1e-6,metricData[t.key].views[d])}));
+    const tot=d3.sum(tw,o=>o.w)||1;
+    return EMO.map((e,i)=>d3.sum(tw,o=>o.w*o.t.daily[d].emo[i])/tot);
+  }
+  // emotional diversity: normalised Shannon entropy of the 6-emotion mix (1=even, 0=one emotion)
+  function entropyOf(vec){const s=d3.sum(vec)||1;let h=0;
+    vec.forEach(v=>{const p=v/s;if(p>0)h-=p*Math.log(p);});return h/Math.log(EMO.length);}
+  function isLocked(vec){return entropyOf(vec)<0.62 && EMO[d3.maxIndex(vec)]==="joy";}
+  // Pearson correlation of emotions across days (pooled over the selected topics)
+  function corrMatrix(){
+    const set=selTopics.size?topics.filter(t=>selTopics.has(t.key)):topics;
+    const ser=EMO.map(()=>[]);
+    set.forEach(t=>{for(let d=0;d<nDays;d++){const e=t.daily[d].emo;EMO.forEach((_,i)=>ser[i].push(e[i]));}});
+    const mean=ser.map(s=>d3.mean(s)),
+          sd=ser.map((s,i)=>Math.sqrt(d3.mean(s.map(v=>(v-mean[i])**2)))||1e-9),
+          n=ser[0].length;
+    return EMO.map((_,i)=>EMO.map((_,j)=>{let c=0;
+      for(let k=0;k<n;k++)c+=(ser[i][k]-mean[i])*(ser[j][k]-mean[j]);
+      return clamp((c/n)/(sd[i]*sd[j]),-1,1);}));
+  }
+  function corrColor(r){return r>=0?d3.interpolateRgb("#f1f1f4","#fe2c55")(r)
+                                   :d3.interpolateRgb("#f1f1f4","#2f7fd0")(-r);}
+  const tip=d3.select("#tip");
+  function hideTip(){tip.style("opacity",0);}
+  function showCorrTip(ev,d){
+    let h;
+    if(d.i===d.j){h=`<b>${EMO[d.i]}</b> vs itself<br><span class="r">r = 1.00</span>`;}
+    else{const r=d.r,rel=r>=0.3?"tend to rise together":r<=-0.3?"trade off — one rises as the other falls":"move fairly independently";
+      h=`<b>${EMO[d.i]}</b> ↔ <b>${EMO[d.j]}</b><br><span class="r">r = ${r.toFixed(2)}</span> · ${rel}`;}
+    tip.html(h).style("opacity",1)
+       .style("left",Math.min(window.innerWidth-220,ev.clientX+14)+"px")
+       .style("top",(ev.clientY+14)+"px");
+  }
 
   function render(m, animate=true){
     metric=m;
@@ -206,7 +285,7 @@ d3.json("explore_data.json").then(DATA=>{
         .join("text").attr("class","word").attr("fill",t.color).attr("text-anchor","middle").text(d=>d.w);
       T(wsel).attr("x",d=>d.x).attr("y",d=>d.y+d.size*.32).style("font-size",d=>d.size+"px");
     });
-    applyDim(); drawFlags(); updateCursor(); updateAll();
+    applyDim(); drawFlags(); updateCursor(); updateAll(); renderLock(); renderCorr();
   }
   function applyDim(){const has=selTopics.size>0;
     gB.selectAll("g.band").each(function(l){const on=!has||selTopics.has(l.topic.key);const s=d3.select(this);
@@ -240,6 +319,7 @@ d3.json("explore_data.json").then(DATA=>{
     const px=x(t0_plus(cursorDay));
     cursor.attr("x1",px).attr("x2",px).style("opacity",.55);
     cursorLab.attr("x",px).text(d3.timeFormat("%b %d")(t0_plus(cursorDay))).style("opacity",1);
+    if(typeof lockCursor!=="undefined") lockCursor.attr("x1",px).attr("x2",px).attr("opacity",.5);
   }
 
   // ---------- window stats ----------
@@ -268,6 +348,7 @@ d3.json("explore_data.json").then(DATA=>{
 
   function updateAll(){
     const s=statsFor(cursorDay);
+    const div=entropyOf(s.emo);
     const dom = selEmos.size ? [...selEmos].sort((a,b)=>s.emo[EMO.indexOf(b)]-s.emo[EMO.indexOf(a)])[0]
                              : EMO[d3.maxIndex(s.emo)];
     const tint=d3.interpolateRgb(emoColor[dom],"#ffffff")(0.82);
@@ -279,6 +360,7 @@ d3.json("explore_data.json").then(DATA=>{
           <div class="badges">
             <span class="badge">${s.ai>0.5?`🤖 mostly AI (${Math.round(s.ai*100)}%)`:`🙂 human-made (${Math.round((1-s.ai)*100)}%)`}</span>
             <span class="badge">⏱ ${fmtDur(s.dur)}</span>
+            <span class="badge" title="Mood diversity = how evenly the 6 emotions are spread that day (100% = perfectly balanced, low = one emotion dominates).">🎭 ${Math.round(div*100)}% mood diversity</span>
             ${s.tags.map(h=>`<span class="badge tag">${h}</span>`).join("")}
           </div>
           <div class="cap">"${s.cap}"</div>
@@ -302,8 +384,10 @@ d3.json("explore_data.json").then(DATA=>{
   function updateEmo(prof,color,label,day){
     const act = selEmos.size ? EMO.filter(e=>selEmos.has(e)) : EMO;
     const n=act.length;
+    const localMax = d3.max(act,e=>prof[EMO.indexOf(e)])||1e-6; // topic-norm denominator
     const ax=act.map((e,i)=>{const a=i/n*2*Math.PI-Math.PI/2; const idx=EMO.indexOf(e);
-      return {e,a,v:clamp(prof[idx]/axisMax[idx],0,1.05),
+      const v = normMode==="topic" ? prof[idx]/localMax : prof[idx]/axisMax[idx];
+      return {e,a,v:clamp(v,0,1.05),
               x2:ecx+eR*Math.cos(a),y2:ecy+eR*Math.sin(a),
               lx:ecx+(eR+16)*Math.cos(a),ly:ecy+(eR+16)*Math.sin(a)};});
     eAxis.selectAll("line").data(ax).join("line")
@@ -316,7 +400,7 @@ d3.json("explore_data.json").then(DATA=>{
       .transition().duration(250).attr("d", pts.length>1 ? d3.line()(pts.concat([pts[0]])) : "");
     eDots.selectAll("circle").data(pts).join("circle").transition().duration(250)
       .attr("cx",d=>d[0]).attr("cy",d=>d[1]).attr("r",n<=2?6:4.4).attr("fill",(d,i)=>emoColor[ax[i].e]);
-    d3.select("#emoTitle").html(`Mood — <b style="color:${color}">${label}</b> · ${d3.timeFormat("%b %d")(t0_plus(day))} <span style="font-weight:400">(relative)</span>`);
+    d3.select("#emoTitle").html(`Mood — <b style="color:${color}">${label}</b> · ${d3.timeFormat("%b %d")(t0_plus(day))} <span style="font-weight:400">(${normMode==="topic"?"topic norm":"global"})</span>`);
   }
 
   // ---------- lifelines ----------
@@ -343,6 +427,70 @@ d3.json("explore_data.json").then(DATA=>{
     d3.select("#lifeTitle").html(`30-day lifelines — <b style="color:${col}">${lab}</b>`);
   }
 
+  // ---------- emotional lock-in strip (reuses main x scale) ----------
+  const lockH=58;
+  const lsv=d3.select("#lock").append("svg").attr("viewBox",[0,0,W,lockH]).style("width","100%").style("display","block");
+  lsv.on("mousemove",function(ev){const mx=d3.pointer(ev,this)[0];
+    cursorDay=clamp(Math.round((x.invert(mx)-t0)/86400000),monthStart,monthEnd);updateCursor();updateAll();});
+  const lockY=d3.scaleLinear().domain([0,1]).range([lockH-15,8]), lockBot=lockH-14;
+  const lockArea=d3.area().x(d=>x(dates[d.day])).y0(lockBot).y1(d=>lockY(d.div)).curve(d3.curveMonotoneX);
+  const lockLine=d3.line().x(d=>x(dates[d.day])).y(d=>lockY(d.div)).curve(d3.curveMonotoneX);
+  const lockMean=lsv.append("line").attr("stroke","#00808f").attr("stroke-width",0.7).attr("stroke-dasharray","3 3").attr("opacity",.4);
+  const lockZones=lsv.append("g"), lockGA=lsv.append("path"), lockGL=lsv.append("path").attr("fill","none");
+  const lockCursor=lsv.append("line").attr("y1",6).attr("y2",lockH-13).attr("stroke","var(--ink)")
+    .attr("stroke-width",1.2).attr("stroke-dasharray","4 3").attr("opacity",0);
+  lsv.append("text").attr("x",W-M.r).attr("y",lockH-2).attr("text-anchor","end").attr("fill","var(--muted)")
+    .style("font-size","10.5px").text("mood diversity ↑   ·   red = day unusually flat for this period (joy lock-in)");
+  lsv.append("text").attr("x",M.l).attr("y",lockH-2).attr("fill","var(--muted)")
+    .style("font-size","10.5px").style("font-weight","700").text("🔒 Lock-in monitor");
+  function renderLock(){
+    const md=d3.range(monthStart,monthEnd+1);
+    const rows=md.map(d=>{const e=dayEmo(d);return {day:d,div:entropyOf(e),joy:EMO[d3.maxIndex(e)]==="joy"};});
+    const divs=rows.map(r=>r.div), lo=d3.min(divs), hi=d3.max(divs),
+          m=d3.mean(divs), sd=d3.deviation(divs)||0, sp=Math.max(hi-lo,0.02);
+    lockY.domain([lo-sp*0.12, hi+sp*0.12]);          // contrast-stretch: fill the strip with the real range
+    lockMean.attr("x1",x(dates[monthStart])).attr("x2",x(dates[monthEnd])).attr("y1",lockY(m)).attr("y2",lockY(m));
+    lockGA.attr("fill","rgba(0,128,143,.15)").attr("d",lockArea(rows));
+    lockGL.attr("stroke","#00808f").attr("stroke-width",1.6).attr("d",lockLine(rows));
+    // flag ONLY days that are unusually flat for THIS period (z < -0.9 & joy-led); a uniform period flags nothing
+    const flagged = sd>0.003 ? rows.filter(r=>r.joy && (r.div-m)/sd < -0.9) : [];
+    lockZones.selectAll("rect").data(flagged).join("rect")
+      .attr("x",d=>x(dates[d.day])-3.2).attr("y",6).attr("width",6.4).attr("height",lockH-19)
+      .attr("fill","#fe2c55").attr("opacity",d=>clamp((m-d.div)/sd*0.35,.25,.6));
+  }
+
+  // ---------- emotion correlation (entanglement) matrix ----------
+  const cN=EMO.length, cell=27, pad=40, cW=pad+cN*cell+8;
+  const csv=d3.select("#corr").append("svg").attr("viewBox",[0,0,cW,cW]).style("width","100%");
+  const cLab=csv.append("g"); // static labels
+  cLab.selectAll("text.col").data(EMO).join("text").attr("class","col")
+    .attr("x",(d,i)=>pad+i*cell+cell/2-1).attr("y",pad-7).attr("text-anchor","middle")
+    .attr("fill",d=>emoColor[d]).style("font-size","9.5px").style("font-weight",700)
+    .text(d=>d.slice(0,3));
+  cLab.selectAll("text.row").data(EMO).join("text").attr("class","row")
+    .attr("x",pad-6).attr("y",(d,i)=>pad+i*cell+cell/2+2).attr("text-anchor","end")
+    .attr("fill",d=>emoColor[d]).style("font-size","9.5px").style("font-weight",700)
+    .text(d=>d.slice(0,3));
+  const cGrid=csv.append("g");
+  function renderCorr(){
+    const Mx=corrMatrix(), cells=[];
+    for(let i=0;i<cN;i++)for(let j=0;j<cN;j++)cells.push({i,j,r:Mx[i][j]});
+    const sel=cGrid.selectAll("g.cc").data(cells).join(en=>{const g=en.append("g").attr("class","cc");
+      g.append("rect").attr("rx",3).attr("width",cell-2.5).attr("height",cell-2.5);return g;});
+    sel.attr("transform",d=>`translate(${pad+d.j*cell},${pad+d.i*cell})`).style("cursor","crosshair")
+      .on("mousemove",showCorrTip).on("mouseleave",hideTip);
+    sel.select("rect").attr("fill",d=>d.i===d.j?"#dcdce2":corrColor(d.r))
+      .attr("stroke",d=>d.i!==d.j&&Math.abs(d.r)>0.5?"rgba(0,0,0,.35)":"none");
+    // strongest off-diagonal pair → plain-language summary
+    let best=null;
+    for(let i=0;i<cN;i++)for(let j=i+1;j<cN;j++)
+      if(!best||Math.abs(Mx[i][j])>Math.abs(best.r))best={i,j,r:Mx[i][j]};
+    const lab=selTopics.size?(selTopics.size===1?[...selTopics][0]:`${selTopics.size} topics`):"all topics";
+    d3.select("#corrTitle").html(`Emotion entanglement — <b>${lab}</b>`);
+    if(best){const dir=best.r>=0?'<span class="pos">rise together</span>':'<span class="neg">trade off</span>';
+      d3.select("#corrSum").html(`Strongest link: <b>${EMO[best.i]}</b> &amp; <b>${EMO[best.j]}</b> ${dir} (r=${best.r.toFixed(2)}). Red cells = emotions that move together; blue = one suppresses the other, across the month.`);}
+  }
+
   // ---------- emotion chips + controls ----------
   const ec=d3.select("#emosel");
   EMO.forEach(e=>{ec.append("button").attr("class","echip").style("--ec",emoColor[e])
@@ -365,7 +513,20 @@ d3.json("explore_data.json").then(DATA=>{
   d3.selectAll(".seg button[data-m]").on("click",function(){
     d3.selectAll(".seg button[data-m]").classed("active",false);d3.select(this).classed("active",true);render(this.dataset.m);});
 
+  // mood-scale toggle (global vs topic-relative normalization)
+  d3.selectAll("#normsel button").on("click",function(){
+    d3.selectAll("#normsel button").classed("active",false);
+    d3.select(this).classed("active",true);
+    normMode=this.dataset.n; updateAll();
+  });
+
   setMonth(DATA.defaultMonth);
+
+  // keep the scrollable side panel exactly as tall as the chart+lock column
+  const _cc=document.querySelector(".chartcol"), _sd=document.querySelector(".side");
+  if(window.ResizeObserver&&_cc&&_sd) new ResizeObserver(()=>{_sd.style.height=_cc.offsetHeight+"px";}).observe(_cc);
+  document.addEventListener("click",e=>{const dk=document.getElementById("topicdock");
+    if(dk&&dk.classList.contains("open")&&!dk.contains(e.target))dk.classList.remove("open");});
 }).catch(err=>{
   document.getElementById("loading").innerHTML=
     "Couldn't load <b>explore_data.json</b>.<br>Run <code>python3 build_explore_data.py</code> first, "+
