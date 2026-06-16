@@ -52,13 +52,13 @@
   .side::-webkit-scrollbar-track{background:transparent}
   .side::-webkit-scrollbar-thumb{background:var(--accent);border-radius:8px;border:2px solid var(--bg)}
   .side::-webkit-scrollbar-thumb:hover{background:#d81f46}
-  .topicdock{position:absolute;top:0;left:0;height:100%;z-index:30}
+  .topicdock{position:absolute;top:0;left:0;height:100%;z-index:5}
   .topictab{position:absolute;top:10px;left:0;writing-mode:vertical-rl;background:var(--accent);color:#fff;border:none;
     border-radius:0 11px 11px 0;padding:16px 8px;font-family:var(--ui);font-weight:700;font-size:11.5px;letter-spacing:.14em;
     text-transform:uppercase;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.18);transition:opacity .2s}
-  .topicflyout{position:absolute;top:0;left:0;width:190px;max-height:100%;overflow-y:auto;
+  .topicflyout{position:absolute;top:0;left:0;width:190px;max-height:100%;overflow-y:auto;pointer-events:none;
     transform:translateX(-100%);opacity:0;transition:transform .26s cubic-bezier(.4,0,.2,1),opacity .26s}
-  .topicdock.open .topicflyout{transform:translateX(0);opacity:1}
+  .topicdock.open .topicflyout{transform:translateX(0);opacity:1;pointer-events:auto}
   .topicdock.open .topictab{opacity:0;pointer-events:none}
   #tip{position:fixed;z-index:90;pointer-events:none;opacity:0;transition:opacity .12s;background:var(--bg);color:var(--ink);
     border:1px solid var(--grid);border-radius:10px;box-shadow:0 8px 26px rgba(0,0,0,.18);padding:8px 11px;
